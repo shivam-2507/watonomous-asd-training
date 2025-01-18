@@ -11,38 +11,95 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # Search for dependencies required for building this package
-find_package(ament_cmake REQUIRED) # ROS2 build tool
-find_package(rclcpp REQUIRED)      # ROS2 C++ package
-find_package(geometry_msgs REQUIRED)      # ROS2 C++ package
-find_package(sensor_msgs REQUIRED)      # ROS2 C++ package
-find_package(nav_msgs REQUIRED)      # ROS2 C++ package
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 
-# Compiles source files into a library
-# A library is not executed, instead other executables can link
-# against it to access defined methods and classes.
-# We build a library so that the methods defined can be used by
-# both the unit test and ROS2 node executables.
-add_library(costmap_lib
-        src/costmap_core.cpp)
-# Indicate to compiler where to search for header files
-target_include_directories(costmap_lib
-        PUBLIC include)
-# Add ROS2 dependencies required by package
-ament_target_dependencies(costmap_lib rclcpp sensor_msgs nav_msgs geometry_msgs)
+# Compile core library
+add_library(${PROJECT_NAME}_core
+  src/costmap_core.cpp
+)
 
-# Create ROS2 node executable from source files
-add_executable(costmap_node src/costmap_node.cpp)
-# Link to the previously built library to access costmap classes and methods
-target_link_libraries(costmap_node costmap_lib)
+# Set include directories for core library
+target_include_directories(${PROJECT_NAME}_core
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 
-# Copy executable to installation location
+# Add dependencies for core library
+ament_target_dependencies(${PROJECT_NAME}_core
+  rclcpp
+  geometry_msgs
+  sensor_msgs
+  nav_msgs
+)
+
+# Create and link the node executable
+add_executable(${PROJECT_NAME}_node
+  src/costmap_node.cpp
+)
+
+target_include_directories(${PROJECT_NAME}_node
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+target_link_libraries(${PROJECT_NAME}_node
+  ${PROJECT_NAME}_core
+)
+
+ament_target_dependencies(${PROJECT_NAME}_node
+  rclcpp
+  geometry_msgs
+  sensor_msgs
+  nav_msgs
+)
+
+# Install targets
 install(TARGETS
-        costmap_node
-        DESTINATION lib/${PROJECT_NAME})
+  ${PROJECT_NAME}_core
+  ${PROJECT_NAME}_node
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
 
-# Copy launch and config files to installation location
-install(DIRECTORY
-        config
-        DESTINATION share/${PROJECT_NAME})
+# Install include directory
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
+
+# Install launch and config directories if they exist
+install(
+  DIRECTORY
+    launch
+    config
+  DESTINATION share/${PROJECT_NAME}
+  OPTIONAL
+)
+
+# Export dependencies
+ament_export_targets(${PROJECT_NAME}_coreTargets HAS_LIBRARY_TARGET)
+ament_export_dependencies(
+  rclcpp
+  geometry_msgs
+  sensor_msgs
+  nav_msgs
+)
+
+# Export include directory
+ament_export_include_directories(
+  include
+)
+
+# Export libraries
+ament_export_libraries(
+  ${PROJECT_NAME}_core
+)
 
 ament_package()

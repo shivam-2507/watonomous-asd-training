@@ -16,7 +16,7 @@ public:
   // Retrieves all the parameters and their values in params.yaml
   void processParameters();
 
-  // Given a laserscan, it will send it into CostmapCore for processing and then
+  // get a laserscan, send it into CostmapCore for processing and then
   // retrieve the costmap
   void laserScanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) const;
 

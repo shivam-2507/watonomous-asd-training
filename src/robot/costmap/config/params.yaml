@@ -7,8 +7,8 @@ costmap_node:
       resolution: 0.40
       width: 120
       height: 120
-
-      origin:
+m
+      origin: 
         position:
           x: -24.0 # given by -1 * width * resolution / 2
           y: -24.0 # given by -1 * height * resolution / 2

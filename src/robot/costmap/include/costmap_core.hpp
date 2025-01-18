@@ -14,7 +14,7 @@ namespace robot
     // Constructor, we pass in the node's RCLCPP logger to enable logging to terminal
     explicit CostmapCore(const rclcpp::Logger &logger);
 
-    // Initializes the Costmap with the parameters that we get from the params.yaml
+    // parameters that we get from the params.yaml
     void initCostmap(
         double resolution,
         int width,
