@@ -98,11 +98,11 @@ void CostmapCore::inflateObstacle(int origin_x, int origin_y) const
         double distance = std::hypot(dx * costmap_data_->info.resolution,
                                    dy * costmap_data_->info.resolution);
 
-        // Only inflate if within inflation radius
+        // only inflate if within inflation radius
         if (distance <= inflation_radius_)
         {
           int index = y * costmap_data_->info.width + x;
-          // calculate cost based on distance (linear decay)
+          // calculate cost based on distance (linear decay) --> check if right formula (dont think its linear)
           int cost = static_cast<int>((1.0 - distance / inflation_radius_) * 99);
           // set cost to max of current cost and new cost
           costmap_data_->data[index] = std::max(static_cast<int8_t>(cost),
