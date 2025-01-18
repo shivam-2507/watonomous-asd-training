@@ -7,8 +7,8 @@ CostmapNode::CostmapNode() : Node("costmap"), costmap_(robot::CostmapCore(this->
 {
   processParameters();
 
-  laser_scan_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
-      laserscan_topic_, 10,
+  laser_scan_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>( // Create a subscription to the laserscan topic
+      laserscan_topic_, 10, 
       std::bind(
           &CostmapNode::laserScanCallback, this,
           std::placeholders::_1));
@@ -47,16 +47,18 @@ void CostmapNode::processParameters()
   resolution_ = this->get_parameter("costmap.resolution").as_double();
   width_ = this->get_parameter("costmap.width").as_int();
   height_ = this->get_parameter("costmap.height").as_int();
+
   origin_.position.x = this->get_parameter("costmap.origin.position.x").as_double();
   origin_.position.y = this->get_parameter("costmap.origin.position.y").as_double();
   origin_.orientation.w = this->get_parameter("costmap.origin.orientation.w").as_double();
   inflation_radius_ = this->get_parameter("costmap.inflation_radius").as_double();
+
 }
 
 void CostmapNode::laserScanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) const
 {
   // Update the costmap according to the laser scan
-  costmap_.updateCostmap(msg);
+  costmap_.updateCostmap(msg); // costmapCore function (dont get confused -> NOT wato's custom)
   // publish the costmap
   nav_msgs::msg::OccupancyGrid costmap_msg = *costmap_.getCostmapData();
   costmap_msg.header = msg->header;
