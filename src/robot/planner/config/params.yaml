@@ -1,10 +1,15 @@
 planner_node:
   ros__parameters:
     map_topic: "/map"
-    goal_topic: "/goal_point"
+    goal_topic: "/goal_pose"
     odom_topic: "/odom/filtered"
     path_topic: "/path"
 
-    # start end params
-    goal_tolerance: 1.5
-    plan_timeout_seconds: 60.0
+    # Path Smoothing Params
+    smoothing_factor: 0.2
+    iterations: 20
+
+    # Path start-end params
+    goal_tolerance: 0.3
+    plan_timeout_seconds: 30.0
+

@@ -10,15 +10,10 @@
 class CostmapNode : public rclcpp::Node
 {
 public:
-  // Costmap Node constructor
   CostmapNode();
 
-  // Retrieves all the parameters and their values in params.yaml
-  void processParameters();
-
-  // get a laserscan, send it into CostmapCore for processing and then
-  // retrieve the costmap
-  void laserScanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) const;
+  void process_parameters();
+  void laser_scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) const;
 
 private:
   robot::CostmapCore costmap_;

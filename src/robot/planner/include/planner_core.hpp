@@ -16,83 +16,81 @@
 namespace robot
 {
 
-// ------------------- Supporting Structures -------------------
+  // ------------------- Supporting Structures -------------------
 
-// 2D grid index
-struct CellIndex
-{
-  int x;
-  int y;
-
-  CellIndex(int xx, int yy) : x(xx), y(yy) {}
-  CellIndex() : x(0), y(0) {}
-
-  bool operator==(const CellIndex &other) const
+  // 2D grid index
+  struct CellIndex
   {
-    return (x == other.x && y == other.y);
-  }
+    int x;
+    int y;
 
-  bool operator!=(const CellIndex &other) const
+    CellIndex(int xx, int yy) : x(xx), y(yy) {}
+    CellIndex() : x(0), y(0) {}
+
+    bool operator==(const CellIndex &other) const
+    {
+      return (x == other.x && y == other.y);
+    }
+
+    bool operator!=(const CellIndex &other) const
+    {
+      return (x != other.x || y != other.y);
+    }
+  };
+
+  // Hash function for CellIndex so it can be used in std::unordered_map
+  struct CellIndexHash
   {
-    return (x != other.x || y != other.y);
-  }
-};
+    std::size_t operator()(const CellIndex &idx) const
+    {
+      // A simple hash combining x and y
+      return std::hash<int>()(idx.x) ^ (std::hash<int>()(idx.y) << 1);
+    }
+  };
 
-// Hash function for CellIndex so it can be used in std::unordered_map
-struct CellIndexHash
-{
-  std::size_t operator()(const CellIndex &idx) const
+  // Structure representing a node in the A* open set
+  struct AStarNode
   {
-    // A simple hash combining x and y
-    return std::hash<int>()(idx.x) ^ (std::hash<int>()(idx.y) << 1);
-  }
-};
+    CellIndex index;
+    double f_score; // f = g + h
 
-// Structure representing a node in the A* open set
-struct AStarNode
-{
-  CellIndex index;
-  double f_score;  // f = g + h
+    AStarNode(CellIndex idx, double f) : index(idx), f_score(f) {}
+  };
 
-  AStarNode(CellIndex idx, double f) : index(idx), f_score(f) {}
-};
-
-// Comparator for the priority queue (min-heap by f_score)
-struct CompareF
-{
-  bool operator()(const AStarNode &a, const AStarNode &b)
+  // Comparator for the priority queue (min-heap by f_score)
+  struct CompareF
   {
-    // We want the node with the smallest f_score on top
-    return a.f_score > b.f_score;
-  }
-};
+    bool operator()(const AStarNode &a, const AStarNode &b)
+    {
+      // We want the node with the smallest f_score on top
+      return a.f_score > b.f_score;
+    }
+  };
 
-class PlannerCore {
+  class PlannerCore
+  {
   public:
-    explicit PlannerCore(const rclcpp::Logger& logger);
+    explicit PlannerCore(const rclcpp::Logger &logger);
 
     void initPlanner(double smoothing_factor, int iterations);
 
     bool planPath(
-      double start_world_x,
-      double start_world_y,
-      double goal_x,
-      double goal_y,
-      nav_msgs::msg::OccupancyGrid::SharedPtr map
-    );
+        double start_world_x,
+        double start_world_y,
+        double goal_x,
+        double goal_y,
+        nav_msgs::msg::OccupancyGrid::SharedPtr map);
 
     bool doAStar(
-      const CellIndex &start_idx,
-      const CellIndex &goal_idx,
-      std::vector<CellIndex> &out_path
-    );
+        const CellIndex &start_idx,
+        const CellIndex &goal_idx,
+        std::vector<CellIndex> &out_path);
 
     // Reconstructs path by backtracking cameFrom
     void reconstructPath(
-      const std::unordered_map<CellIndex, CellIndex, CellIndexHash> &cameFrom,
-      const CellIndex &current,
-      std::vector<CellIndex> &out_path
-    );
+        const std::unordered_map<CellIndex, CellIndex, CellIndexHash> &cameFrom,
+        const CellIndex &current,
+        std::vector<CellIndex> &out_path);
 
     // 8-direction neighbors
     std::vector<CellIndex> getNeighbors8(const CellIndex &c);
@@ -124,8 +122,8 @@ class PlannerCore {
     rclcpp::Logger logger_;
     nav_msgs::msg::OccupancyGrid::SharedPtr map_;
     nav_msgs::msg::Path::SharedPtr path_;
-};
+  };
 
-}  
+}
 
-#endif  
+#endif

@@ -4,7 +4,8 @@
 #include "odometry_spoof.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
-OdometrySpoofNode::OdometrySpoofNode() : Node("odometry_spoof") {
+OdometrySpoofNode::OdometrySpoofNode() : Node("odometry_spoof")
+{
   // Create publisher for Odometry messages
   odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("odom/filtered", 10);
 
@@ -14,27 +15,29 @@ OdometrySpoofNode::OdometrySpoofNode() : Node("odometry_spoof") {
 
   // Create a timer to fetch transform & publish odometry at ~10 Hz
   timer_ = this->create_wall_timer(
-    std::chrono::milliseconds(100),
-    std::bind(&OdometrySpoofNode::timerCallback, this)
-  );
+      std::chrono::milliseconds(100),
+      std::bind(&OdometrySpoofNode::timerCallback, this));
 }
 
-void OdometrySpoofNode::timerCallback() {
-  // We'll look up the transform from sim_world -> robot/chassis/lidar, 
-  // note robot frame is usually not the lidar sensor, but we do so to make this
-  // assignment easier
-  const std::string target_frame = "robot/chassis/lidar";
+void OdometrySpoofNode::timerCallback()
+{
+  // We'll look up the transform from sim_world -> robot
+  // If it's reversed in your setup, swap the frame IDs.
+  const std::string target_frame = "robot";
   const std::string source_frame = "sim_world";
 
   geometry_msgs::msg::TransformStamped transform_stamped;
-  try {
+  try
+  {
     transform_stamped = tf_buffer_->lookupTransform(
-      source_frame,
-      target_frame,
-      tf2::TimePointZero  // latest available transform
+        source_frame,
+        target_frame,
+        tf2::TimePointZero // latest available transform
     );
-  } catch (const tf2::TransformException &ex) {
-    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Could not transform %s to %s: %s",
+  }
+  catch (const tf2::TransformException &ex)
+  {
+    RCLCPP_WARN(this->get_logger(), "Could not transform %s to %s: %s",
                 source_frame.c_str(), target_frame.c_str(), ex.what());
     return;
   }
@@ -44,8 +47,8 @@ void OdometrySpoofNode::timerCallback() {
 
   // Fill header
   odom_msg.header.stamp = transform_stamped.header.stamp;
-  odom_msg.header.frame_id = source_frame;  // "world" frame
-  odom_msg.child_frame_id  = target_frame;  // "robot" frame
+  odom_msg.header.frame_id = source_frame; // "world" frame
+  odom_msg.child_frame_id = target_frame;  // "robot" frame
 
   // Pose from TF
   odom_msg.pose.pose.position.x = transform_stamped.transform.translation.x;
@@ -89,16 +92,16 @@ void OdometrySpoofNode::timerCallback() {
       tf2::Matrix3x3(q_diff).getRPY(roll_diff, pitch_diff, yaw_diff);
 
       // Angular velocity (rad/s)
-      odom_msg.twist.twist.angular.x = roll_diff  / dt;
+      odom_msg.twist.twist.angular.x = roll_diff / dt;
       odom_msg.twist.twist.angular.y = pitch_diff / dt;
-      odom_msg.twist.twist.angular.z = yaw_diff   / dt;
+      odom_msg.twist.twist.angular.z = yaw_diff / dt;
     }
     else
     {
       // If dt == 0, set velocity to zero
-      odom_msg.twist.twist.linear.x  = 0.0;
-      odom_msg.twist.twist.linear.y  = 0.0;
-      odom_msg.twist.twist.linear.z  = 0.0;
+      odom_msg.twist.twist.linear.x = 0.0;
+      odom_msg.twist.twist.linear.y = 0.0;
+      odom_msg.twist.twist.linear.z = 0.0;
       odom_msg.twist.twist.angular.x = 0.0;
       odom_msg.twist.twist.angular.y = 0.0;
       odom_msg.twist.twist.angular.z = 0.0;
@@ -107,9 +110,9 @@ void OdometrySpoofNode::timerCallback() {
   else
   {
     // No previous transform yet; set velocity to zero
-    odom_msg.twist.twist.linear.x  = 0.0;
-    odom_msg.twist.twist.linear.y  = 0.0;
-    odom_msg.twist.twist.linear.z  = 0.0;
+    odom_msg.twist.twist.linear.x = 0.0;
+    odom_msg.twist.twist.linear.y = 0.0;
+    odom_msg.twist.twist.linear.z = 0.0;
     odom_msg.twist.twist.angular.x = 0.0;
     odom_msg.twist.twist.angular.y = 0.0;
     odom_msg.twist.twist.angular.z = 0.0;
@@ -124,19 +127,17 @@ void OdometrySpoofNode::timerCallback() {
   // Store current transform as "last" for next iteration
   last_time_ = transform_stamped.header.stamp;
   last_position_.setValue(
-    odom_msg.pose.pose.position.x,
-    odom_msg.pose.pose.position.y,
-    odom_msg.pose.pose.position.z
-  );
+      odom_msg.pose.pose.position.x,
+      odom_msg.pose.pose.position.y,
+      odom_msg.pose.pose.position.z);
   last_orientation_.setValue(
-    odom_msg.pose.pose.orientation.x,
-    odom_msg.pose.pose.orientation.y,
-    odom_msg.pose.pose.orientation.z,
-    odom_msg.pose.pose.orientation.w
-  );
+      odom_msg.pose.pose.orientation.x,
+      odom_msg.pose.pose.orientation.y,
+      odom_msg.pose.pose.orientation.z,
+      odom_msg.pose.pose.orientation.w);
 }
 
-int main(int argc, char ** argv)
+int main(int argc, char **argv)
 {
   rclcpp::init(argc, argv);
   rclcpp::spin(std::make_shared<OdometrySpoofNode>());
