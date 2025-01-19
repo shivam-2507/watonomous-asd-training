@@ -42,13 +42,6 @@ add_executable(map_memory_node
   src/map_memory_node.cpp
 )
 
-# Set include directories for the node
-target_include_directories(map_memory_node
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
-
 # Link the node with the core library
 target_link_libraries(map_memory_node
   map_memory_core
@@ -63,12 +56,13 @@ ament_target_dependencies(map_memory_node
 )
 
 # Install targets
-install(TARGETS
-  map_memory_core
-  map_memory_node
+install(
+  TARGETS map_memory_core map_memory_node
+  EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
+  INCLUDES DESTINATION include
 )
 
 # Install include directory
@@ -85,8 +79,15 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
-# Export dependencies and targets
-ament_export_targets(map_memory_core HAS_LIBRARY_TARGET)
+# Export targets
+install(
+  EXPORT export_${PROJECT_NAME}
+  DESTINATION share/${PROJECT_NAME}/cmake
+  NAMESPACE ${PROJECT_NAME}::
+)
+
+# Export dependencies
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   rclcpp
   nav_msgs

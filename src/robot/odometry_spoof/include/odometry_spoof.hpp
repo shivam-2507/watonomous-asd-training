@@ -11,31 +11,30 @@
 #include "tf2/LinearMath/Vector3.h"
 #include "tf2/LinearMath/Matrix3x3.h"
 
-class OdometrySpoofNode : public rclcpp::Node
-{
-public:
-  OdometrySpoofNode();
+class OdometrySpoofNode : public rclcpp::Node {
+  public:
+    OdometrySpoofNode();
 
-private:
-  void timerCallback();
+  private:
+    void timerCallback();
 
-  // Odom Publisher
-  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
+    // Odom Publisher
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
 
-  // Transform Utilities
-  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
-  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+    // Transform Utilities
+    std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
-  // Timer to periodically lookup transforms
-  rclcpp::TimerBase::SharedPtr timer_;
+    // Timer to periodically lookup transforms
+    rclcpp::TimerBase::SharedPtr timer_;
 
-  // Check if last transform was found
-  bool has_last_transform_;
+    // Check if last transform was found
+    bool has_last_transform_;
 
-  // Vars to store previous transform
-  rclcpp::Time last_time_;
-  tf2::Vector3 last_position_;
-  tf2::Quaternion last_orientation_;
+    // Vars to store previous transform
+    rclcpp::Time last_time_;
+    tf2::Vector3 last_position_;
+    tf2::Quaternion last_orientation_;
 };
 
-#endif
+#endif 
