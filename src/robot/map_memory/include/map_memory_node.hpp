@@ -13,7 +13,8 @@
 
 #include "map_memory_core.hpp"
 
-class MapMemoryNode : public rclcpp::Node {
+class MapMemoryNode : public rclcpp::Node
+{
 public:
   MapMemoryNode();
 
@@ -51,9 +52,9 @@ private:
   double update_distance_;
 
   // To keep track of robot pose in sim frame
-  double robot_x_;       // [m]
-  double robot_y_;       // [m]
-  double robot_theta_;   // [rad]
+  double robot_x_;     // [m]
+  double robot_y_;     // [m]
+  double robot_theta_; // [rad]
 
   // Last position used to check if robot moved > distance_
   double last_robot_x_;

@@ -1,45 +1,44 @@
 #include "map_memory_node.hpp"
 
 MapMemoryNode::MapMemoryNode()
-: Node("map_memory_node"),
-  map_memory_(get_logger()),
-  robot_x_(0.0),
-  robot_y_(0.0),
-  robot_theta_(0.0),
-  last_robot_x_(0.0),
-  last_robot_y_(0.0)
+    : Node("map_memory_node"),
+      map_memory_(get_logger()),
+      robot_x_(0.0),
+      robot_y_(0.0),
+      robot_theta_(0.0),
+      last_robot_x_(0.0),
+      last_robot_y_(0.0)
 {
   // Process all parameters
   processParameters();
 
   // Initialize the map memory core with parameters
   map_memory_.initMapMemory(
-    resolution_,
-    width_,
-    height_,
-    origin_
-  );
+      resolution_,
+      width_,
+      height_,
+      origin_);
 
   // Create subscribers
   local_costmap_sub_ = create_subscription<nav_msgs::msg::OccupancyGrid>(
-    local_costmap_topic_,
-    10,
-    std::bind(&MapMemoryNode::localCostmapCallback, this, std::placeholders::_1));
+      local_costmap_topic_,
+      10,
+      std::bind(&MapMemoryNode::localCostmapCallback, this, std::placeholders::_1));
 
   odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
-    odom_topic_,
-    10,
-    std::bind(&MapMemoryNode::odomCallback, this, std::placeholders::_1));
+      odom_topic_,
+      10,
+      std::bind(&MapMemoryNode::odomCallback, this, std::placeholders::_1));
 
   // Create publisher
   global_costmap_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>(
-    map_topic_,
-    10);
+      map_topic_,
+      10);
 
   // Create timer for publishing map
   timer_ = create_wall_timer(
-    std::chrono::milliseconds(map_pub_rate_),
-    std::bind(&MapMemoryNode::timerCallback, this));
+      std::chrono::milliseconds(map_pub_rate_),
+      std::bind(&MapMemoryNode::timerCallback, this));
 }
 
 void MapMemoryNode::processParameters()
@@ -74,7 +73,7 @@ void MapMemoryNode::processParameters()
 }
 
 void MapMemoryNode::localCostmapCallback(
-  const nav_msgs::msg::OccupancyGrid::SharedPtr msg)
+    const nav_msgs::msg::OccupancyGrid::SharedPtr msg)
 {
   // Calculate distance moved since last update
   double dx = robot_x_ - last_robot_x_;
@@ -82,7 +81,8 @@ void MapMemoryNode::localCostmapCallback(
   double distance_moved = std::sqrt(dx * dx + dy * dy);
 
   // Update map if robot has moved sufficient distance
-  if (distance_moved >= update_distance_) {
+  if (distance_moved >= update_distance_)
+  {
     map_memory_.updateMap(msg, robot_x_, robot_y_, robot_theta_);
     last_robot_x_ = robot_x_;
     last_robot_y_ = robot_y_;
@@ -94,16 +94,17 @@ void MapMemoryNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg)
   robot_x_ = msg->pose.pose.position.x;
   robot_y_ = msg->pose.pose.position.y;
   robot_theta_ = quaternionToYaw(
-    msg->pose.pose.orientation.x,
-    msg->pose.pose.orientation.y,
-    msg->pose.pose.orientation.z,
-    msg->pose.pose.orientation.w);
+      msg->pose.pose.orientation.x,
+      msg->pose.pose.orientation.y,
+      msg->pose.pose.orientation.z,
+      msg->pose.pose.orientation.w);
 }
 
 void MapMemoryNode::timerCallback()
 {
   auto map_msg = map_memory_.getMapData();
-  if (map_msg) {
+  if (map_msg)
+  {
     global_costmap_pub_->publish(*map_msg);
   }
 }

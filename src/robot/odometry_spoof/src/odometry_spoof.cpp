@@ -1,145 +1,129 @@
-#include <chrono>
-#include <memory>
-
-#include "odometry_spoof.hpp"
+#include "odometry_spoof_node.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include <chrono>
 
-OdometrySpoofNode::OdometrySpoofNode() : Node("odometry_spoof") {
-  // Create publisher for Odometry messages
-  odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("odom/filtered", 10);
+using namespace std::chrono_literals;
 
-  // Create a TF buffer and listener
+OdometrySpoofNode::OdometrySpoofNode()
+    : Node("odometry_spoof_node"),
+      has_last_transform_(false)
+{
+  // Initialize tf buffer with clock
   tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
   tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
-  // Create a timer to fetch transform & publish odometry at ~10 Hz
+  // Initialize publisher for odometry data
+  odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("odometry/robot", 10);
+
+  // Create timer for periodic updates (10Hz)
   timer_ = this->create_wall_timer(
-    std::chrono::milliseconds(100),
-    std::bind(&OdometrySpoofNode::timerCallback, this)
-  );
+      100ms,
+      std::bind(&OdometrySpoofNode::timerCallback, this));
 }
 
-void OdometrySpoofNode::timerCallback() {
-  // We'll look up the transform from sim_world -> robot/chassis/lidar, 
-  // note robot frame is usually not the lidar sensor, but we do so to make this
-  // assignment easier
-  const std::string target_frame = "robot/chassis/lidar";
-  const std::string source_frame = "sim_world";
+void OdometrySpoofNode::timerCallback()
+{
+  // Define source and target frames for transform lookup
+  const auto base_frame = "robot_base";
+  const auto world_frame = "world";
 
-  geometry_msgs::msg::TransformStamped transform_stamped;
-  try {
-    transform_stamped = tf_buffer_->lookupTransform(
-      source_frame,
-      target_frame,
-      tf2::TimePointZero  // latest available transform
-    );
-  } catch (const tf2::TransformException &ex) {
-    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Could not transform %s to %s: %s",
-                source_frame.c_str(), target_frame.c_str(), ex.what());
+  // Get the latest transform
+  geometry_msgs::msg::TransformStamped current_transform;
+  try
+  {
+    current_transform = tf_buffer_->lookupTransform(
+        world_frame,
+        base_frame,
+        tf2::TimePointZero);
+  }
+  catch (const tf2::TransformException &ex)
+  {
+    RCLCPP_WARN_THROTTLE(
+        this->get_logger(),
+        *this->get_clock(),
+        5000, // Throttle period in ms
+        "Transform lookup failed: %s", ex.what());
     return;
   }
 
-  // Create an Odometry message
-  nav_msgs::msg::Odometry odom_msg;
+  // Initialize odometry message
+  auto odom = nav_msgs::msg::Odometry();
 
-  // Fill header
-  odom_msg.header.stamp = transform_stamped.header.stamp;
-  odom_msg.header.frame_id = source_frame;  // "world" frame
-  odom_msg.child_frame_id  = target_frame;  // "robot" frame
+  // Set header information
+  odom.header = current_transform.header;
+  odom.header.frame_id = world_frame;
+  odom.child_frame_id = base_frame;
 
-  // Pose from TF
-  odom_msg.pose.pose.position.x = transform_stamped.transform.translation.x;
-  odom_msg.pose.pose.position.y = transform_stamped.transform.translation.y;
-  odom_msg.pose.pose.position.z = transform_stamped.transform.translation.z;
-  odom_msg.pose.pose.orientation = transform_stamped.transform.rotation;
+  // Copy position data
+  odom.pose.pose.position.x = current_transform.transform.translation.x;
+  odom.pose.pose.position.y = current_transform.transform.translation.y;
+  odom.pose.pose.position.z = current_transform.transform.translation.z;
+  odom.pose.pose.orientation = current_transform.transform.rotation;
 
-  // --- Compute twist from difference in transforms ---
+  // Initialize velocities to zero
+  odom.twist.twist = geometry_msgs::msg::Twist();
+
+  // Calculate velocities if we have a previous transform
   if (has_last_transform_)
   {
-    // Compute time difference
-    rclcpp::Time current_time = transform_stamped.header.stamp;
-    double dt = (current_time - last_time_).seconds();
+    // Get time delta
+    const double delta_t = (current_transform.header.stamp - last_time_).seconds();
 
-    if (dt > 0.0)
+    if (delta_t > 0.0)
     {
-      // Linear velocity
-      double dx = odom_msg.pose.pose.position.x - last_position_.x();
-      double dy = odom_msg.pose.pose.position.y - last_position_.y();
-      double dz = odom_msg.pose.pose.position.z - last_position_.z();
+      // Current position as tf2 vector
+      tf2::Vector3 curr_pos(
+          current_transform.transform.translation.x,
+          current_transform.transform.translation.y,
+          current_transform.transform.translation.z);
 
-      odom_msg.twist.twist.linear.x = dx / dt;
-      odom_msg.twist.twist.linear.y = dy / dt;
-      odom_msg.twist.twist.linear.z = dz / dt;
+      // Calculate linear velocity
+      tf2::Vector3 linear_vel = (curr_pos - last_position_) / delta_t;
+      odom.twist.twist.linear.x = linear_vel.x();
+      odom.twist.twist.linear.y = linear_vel.y();
+      odom.twist.twist.linear.z = linear_vel.z();
 
-      // Angular velocity
-      tf2::Quaternion q_last(last_orientation_.x(),
-                             last_orientation_.y(),
-                             last_orientation_.z(),
-                             last_orientation_.w());
+      // Current orientation
+      tf2::Quaternion curr_quat;
+      tf2::fromMsg(current_transform.transform.rotation, curr_quat);
 
-      tf2::Quaternion q_current(transform_stamped.transform.rotation.x,
-                                transform_stamped.transform.rotation.y,
-                                transform_stamped.transform.rotation.z,
-                                transform_stamped.transform.rotation.w);
+      // Calculate angular velocity using quaternion difference
+      tf2::Quaternion delta_quat = last_orientation_.inverse() * curr_quat;
 
-      // Orientation difference: q_diff = q_last.inverse() * q_current
-      tf2::Quaternion q_diff = q_last.inverse() * q_current;
+      // Convert to RPY
+      double delta_roll, delta_pitch, delta_yaw;
+      tf2::Matrix3x3(delta_quat).getRPY(delta_roll, delta_pitch, delta_yaw);
 
-      double roll_diff, pitch_diff, yaw_diff;
-      tf2::Matrix3x3(q_diff).getRPY(roll_diff, pitch_diff, yaw_diff);
-
-      // Angular velocity (rad/s)
-      odom_msg.twist.twist.angular.x = roll_diff  / dt;
-      odom_msg.twist.twist.angular.y = pitch_diff / dt;
-      odom_msg.twist.twist.angular.z = yaw_diff   / dt;
-    }
-    else
-    {
-      // If dt == 0, set velocity to zero
-      odom_msg.twist.twist.linear.x  = 0.0;
-      odom_msg.twist.twist.linear.y  = 0.0;
-      odom_msg.twist.twist.linear.z  = 0.0;
-      odom_msg.twist.twist.angular.x = 0.0;
-      odom_msg.twist.twist.angular.y = 0.0;
-      odom_msg.twist.twist.angular.z = 0.0;
+      // Set angular velocities
+      odom.twist.twist.angular.x = delta_roll / delta_t;
+      odom.twist.twist.angular.y = delta_pitch / delta_t;
+      odom.twist.twist.angular.z = delta_yaw / delta_t;
     }
   }
-  else
-  {
-    // No previous transform yet; set velocity to zero
-    odom_msg.twist.twist.linear.x  = 0.0;
-    odom_msg.twist.twist.linear.y  = 0.0;
-    odom_msg.twist.twist.linear.z  = 0.0;
-    odom_msg.twist.twist.angular.x = 0.0;
-    odom_msg.twist.twist.angular.y = 0.0;
-    odom_msg.twist.twist.angular.z = 0.0;
 
-    // Mark that we've now received at least one transform
-    has_last_transform_ = true;
-  }
+  // Store current transform data for next iteration
+  last_time_ = current_transform.header.stamp;
+  tf2::fromMsg(current_transform.transform.translation, last_position_);
+  tf2::fromMsg(current_transform.transform.rotation, last_orientation_);
+  has_last_transform_ = true;
 
-  // Publish odom
-  odom_pub_->publish(odom_msg);
-
-  // Store current transform as "last" for next iteration
-  last_time_ = transform_stamped.header.stamp;
-  last_position_.setValue(
-    odom_msg.pose.pose.position.x,
-    odom_msg.pose.pose.position.y,
-    odom_msg.pose.pose.position.z
-  );
-  last_orientation_.setValue(
-    odom_msg.pose.pose.orientation.x,
-    odom_msg.pose.pose.orientation.y,
-    odom_msg.pose.pose.orientation.z,
-    odom_msg.pose.pose.orientation.w
-  );
+  // Publish the odometry message
+  odom_pub_->publish(odom);
 }
 
-int main(int argc, char ** argv)
+#include "odometry_spoof_node.hpp"
+#include <memory>
+
+int main(int argc, char **argv)
 {
+  // Initialize ROS
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<OdometrySpoofNode>());
+
+  // Create and spin node
+  auto node = std::make_shared<OdometrySpoofNode>();
+  rclcpp::spin(node);
+
+  // Clean shutdown
   rclcpp::shutdown();
   return 0;
 }
