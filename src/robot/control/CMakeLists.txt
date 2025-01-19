@@ -11,39 +11,75 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # Search for dependencies required for building this package
-find_package(ament_cmake REQUIRED) # ROS2 build tool
-find_package(rclcpp REQUIRED)      # ROS2 C++ package
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(tf2 REQUIRED)
 
-# Compiles source files into a library
-# A library is not executed, instead other executables can link
-# against it to access defined methods and classes.
-# We build a library so that the methods defined can be used by
-# both the unit test and ROS2 node executables.
+# Compile source files into a library
 add_library(control_lib
-  src/control_core.cpp)
+  src/control_core.cpp
+)
+
 # Indicate to compiler where to search for header files
 target_include_directories(control_lib
   PUBLIC
-  include)
+    include
+)
 
 # Add ROS2 dependencies required by package
 ament_target_dependencies(control_lib
   rclcpp
+  nav_msgs
+  geometry_msgs
+  tf2
 )
 
 # Create ROS2 node executable from source files
-add_executable(control_node src/control_node.cpp)
-# Link to the previously built library to access Transformer classes and methods
-target_link_libraries(control_node control_lib)
+add_executable(control_node 
+  src/control_node.cpp
+)
 
-# Copy executable to installation location
+# Link to the previously built library
+target_link_libraries(control_node
+  control_lib
+)
+
+# Add dependencies to the executable
+ament_target_dependencies(control_node
+  rclcpp
+  nav_msgs
+  geometry_msgs
+  tf2
+)
+
+# Install targets
 install(TARGETS
+  control_lib
   control_node
-  DESTINATION lib/${PROJECT_NAME})
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
 
-# Copy launch and config files to installation location
+# Install include directories
+install(DIRECTORY
+  include/
+  DESTINATION include
+)
+
+# Install launch and config files
 install(DIRECTORY
   config
-  DESTINATION share/${PROJECT_NAME})
+  DESTINATION share/${PROJECT_NAME}
+)
+
+# Install launch directory if it exists
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}
+  OPTIONAL
+)
 
 ament_package()
