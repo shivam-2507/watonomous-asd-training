@@ -11,44 +11,90 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # Search for dependencies required for building this package
-find_package(ament_cmake REQUIRED) # ROS2 build tool
-find_package(rclcpp REQUIRED)      # ROS2 C++ package
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 
-# Compiles source files into a library
-# A library is not executed, instead other executables can link
-# against it to access defined methods and classes.
-# We build a library so that the methods defined can be used by
-# both the unit test and ROS2 node executables.
-add_library(map_memory_lib
-        src/map_memory_core.cpp)
-# Indicate to compiler where to search for header files
-target_include_directories(map_memory_lib
-        PUBLIC include)
-# Add ROS2 dependencies required by package
-ament_target_dependencies(map_memory_lib
-        rclcpp
-        nav_msgs
-        geometry_msgs
-        tf2
+# Create the map memory core library
+add_library(map_memory_core
+  src/map_memory_core.cpp
 )
 
-# Create ROS2 node executable from source files
-add_executable(map_memory_node src/map_memory_node.cpp)
-# Link to the previously built library to access map_memory classes and methods
-target_link_libraries(map_memory_node map_memory_lib)
+# Set include directories for the core library
+target_include_directories(map_memory_core
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 
-# Copy executable to installation location
+# Add dependencies for the core library
+ament_target_dependencies(map_memory_core
+  rclcpp
+  nav_msgs
+  geometry_msgs
+  tf2
+)
+
+# Create the ROS2 node executable
+add_executable(map_memory_node 
+  src/map_memory_node.cpp
+)
+
+# Set include directories for the node
+target_include_directories(map_memory_node
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+# Link the node with the core library
+target_link_libraries(map_memory_node
+  map_memory_core
+)
+
+# Add dependencies for the node
+ament_target_dependencies(map_memory_node
+  rclcpp
+  nav_msgs
+  geometry_msgs
+  tf2
+)
+
+# Install targets
 install(TARGETS
-        map_memory_node
-        DESTINATION lib/${PROJECT_NAME})
+  map_memory_core
+  map_memory_node
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
 
-# Copy launch and config files to installation location
-install(DIRECTORY
-        config
-        DESTINATION share/${PROJECT_NAME})
+# Install include directory
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
 
+# Install launch and config files
+install(
+  DIRECTORY
+    config
+    launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
+# Export dependencies and targets
+ament_export_targets(map_memory_core HAS_LIBRARY_TARGET)
+ament_export_dependencies(
+  rclcpp
+  nav_msgs
+  geometry_msgs
+  tf2
+)
+
+ament_export_include_directories(include)
+ament_export_libraries(map_memory_core)
 
 ament_package()
